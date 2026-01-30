@@ -1,5 +1,5 @@
-import { ReactNode, useState, useEffect } from 'react';
-import { Sidebar } from './Sidebar';
+import { ReactNode, useState } from 'react';
+import { Sidebar } from '@/components/navigation/Sidebar';
 import { useApp } from '@/contexts/AppContext';
 import { cn } from '@/lib/utils';
 
@@ -11,24 +11,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { state } = useApp();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Check for sidebar collapsed state
-  useEffect(() => {
-    const checkWidth = () => {
-      const sidebar = document.querySelector('aside');
-      if (sidebar) {
-        setSidebarCollapsed(sidebar.classList.contains('w-16'));
-      }
-    };
-
-    const observer = new MutationObserver(checkWidth);
-    const sidebar = document.querySelector('aside');
-    if (sidebar) {
-      observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
-    }
-
-    return () => observer.disconnect();
-  }, []);
-
   if (state.focusMode) {
     return (
       <div className="min-h-screen bg-background">
@@ -39,15 +21,20 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      <Sidebar />
+      <Sidebar onCollapsedChange={setSidebarCollapsed} />
+      
+      {/* Main content area */}
       <main
         className={cn(
-          'min-h-screen transition-all duration-300',
-          'ml-64'
+          'min-h-screen transition-[margin] duration-150',
+          'pt-16 md:pt-0', // Account for mobile menu button
+          sidebarCollapsed ? 'md:ml-16' : 'md:ml-60'
         )}
       >
-        <div className="container py-6">
-          {children}
+        <div className="h-screen overflow-y-auto">
+          <div className="container py-6">
+            {children}
+          </div>
         </div>
       </main>
     </div>
