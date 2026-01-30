@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
-import { Task, TodoList, Habit, Category, DailyStats, TimeBlock } from '@/types';
+import { Task, TodoList, Habit, Category, DailyStats, TimeBlock, FixedCommitment } from '@/types';
 import { generateId, getTodayISO, isToday, calculateProductivityScore } from '@/lib/utils';
-import { addDays, format, isAfter, isBefore, startOfDay } from 'date-fns';
+import { addDays, format, isAfter, isBefore, startOfDay, differenceInDays } from 'date-fns';
 
 interface AppState {
   tasks: Task[];
@@ -12,6 +12,11 @@ interface AppState {
   focusMode: boolean;
   currentTaskId: string | null;
   theme: 'light' | 'dark';
+  // Capacity and planning settings
+  dailyCapacityMinutes: number;
+  taskAgingDays: number;
+  fixedCommitments: FixedCommitment[];
+  workingHours: { start: string; end: string };
 }
 
 type AppAction =
@@ -19,6 +24,9 @@ type AppAction =
   | { type: 'UPDATE_TASK'; payload: { id: string; updates: Partial<Task> } }
   | { type: 'DELETE_TASK'; payload: string }
   | { type: 'COMPLETE_TASK'; payload: string }
+  | { type: 'SKIP_TASK'; payload: string }
+  | { type: 'RESCHEDULE_TASK'; payload: { id: string; newDate: Date } }
+  | { type: 'CONFIRM_TASK_FOR_TODAY'; payload: string }
   | { type: 'REORDER_TASKS'; payload: Task[] }
   | { type: 'ADD_TODO_LIST'; payload: Omit<TodoList, 'id' | 'createdAt' | 'archived' | 'items'> }
   | { type: 'ADD_TODO_ITEM'; payload: { listId: string; text: string } }
@@ -35,6 +43,12 @@ type AppAction =
   | { type: 'SET_FOCUS_MODE'; payload: boolean }
   | { type: 'SET_CURRENT_TASK'; payload: string | null }
   | { type: 'SET_THEME'; payload: 'light' | 'dark' }
+  | { type: 'SET_DAILY_CAPACITY'; payload: number }
+  | { type: 'SET_TASK_AGING_DAYS'; payload: number }
+  | { type: 'SET_WORKING_HOURS'; payload: { start: string; end: string } }
+  | { type: 'ADD_FIXED_COMMITMENT'; payload: Omit<FixedCommitment, 'id'> }
+  | { type: 'DELETE_FIXED_COMMITMENT'; payload: string }
+  | { type: 'IMPORT_DATA'; payload: { tasks: Task[]; todoLists: TodoList[]; habits: Habit[]; categories: Category[] } }
   | { type: 'LOAD_STATE'; payload: AppState };
 
 const defaultCategories: Category[] = [
@@ -54,6 +68,10 @@ const initialState: AppState = {
   focusMode: false,
   currentTaskId: null,
   theme: 'dark',
+  dailyCapacityMinutes: 480, // 8 hours
+  taskAgingDays: 7,
+  fixedCommitments: [],
+  workingHours: { start: '09:00', end: '17:00' },
 };
 
 function appReducer(state: AppState, action: AppAction): AppState {
@@ -90,6 +108,45 @@ function appReducer(state: AppState, action: AppAction): AppState {
         tasks: state.tasks.map((task) =>
           task.id === action.payload
             ? { ...task, status: 'completed', completedAt: new Date(), updatedAt: new Date() }
+            : task
+        ),
+      };
+    }
+    case 'SKIP_TASK': {
+      return {
+        ...state,
+        tasks: state.tasks.map((task) =>
+          task.id === action.payload
+            ? { ...task, status: 'skipped', updatedAt: new Date() }
+            : task
+        ),
+      };
+    }
+    case 'RESCHEDULE_TASK': {
+      return {
+        ...state,
+        tasks: state.tasks.map((task) =>
+          task.id === action.payload.id
+            ? {
+                ...task,
+                dueDate: action.payload.newDate,
+                originalDueDate: task.originalDueDate || task.dueDate,
+                rescheduleCount: task.rescheduleCount + 1,
+                carriedOverFrom: task.dueDate ? format(task.dueDate, 'yyyy-MM-dd') : undefined,
+                confirmedForToday: isToday(action.payload.newDate),
+                lastConfirmedDate: isToday(action.payload.newDate) ? getTodayISO() : undefined,
+                updatedAt: new Date(),
+              }
+            : task
+        ),
+      };
+    }
+    case 'CONFIRM_TASK_FOR_TODAY': {
+      return {
+        ...state,
+        tasks: state.tasks.map((task) =>
+          task.id === action.payload
+            ? { ...task, confirmedForToday: true, lastConfirmedDate: getTodayISO(), updatedAt: new Date() }
             : task
         ),
       };
@@ -176,7 +233,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
         missedDates: [],
         currentStreak: 0,
         longestStreak: 0,
-        streakFreezes: 3,
+        streakFreezes: action.payload.maxFreezes,
       };
       return { ...state, habits: [...state.habits, newHabit] };
     }
@@ -242,6 +299,37 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'SET_THEME': {
       return { ...state, theme: action.payload };
     }
+    case 'SET_DAILY_CAPACITY': {
+      return { ...state, dailyCapacityMinutes: action.payload };
+    }
+    case 'SET_TASK_AGING_DAYS': {
+      return { ...state, taskAgingDays: action.payload };
+    }
+    case 'SET_WORKING_HOURS': {
+      return { ...state, workingHours: action.payload };
+    }
+    case 'ADD_FIXED_COMMITMENT': {
+      const newCommitment: FixedCommitment = {
+        ...action.payload,
+        id: generateId(),
+      };
+      return { ...state, fixedCommitments: [...state.fixedCommitments, newCommitment] };
+    }
+    case 'DELETE_FIXED_COMMITMENT': {
+      return {
+        ...state,
+        fixedCommitments: state.fixedCommitments.filter((c) => c.id !== action.payload),
+      };
+    }
+    case 'IMPORT_DATA': {
+      return {
+        ...state,
+        tasks: [...state.tasks, ...action.payload.tasks],
+        todoLists: [...state.todoLists, ...action.payload.todoLists],
+        habits: [...state.habits, ...action.payload.habits],
+        categories: action.payload.categories,
+      };
+    }
     case 'LOAD_STATE': {
       return action.payload;
     }
@@ -259,6 +347,10 @@ interface AppContextType {
   getOverdueTasks: () => Task[];
   getCompletedTasks: () => Task[];
   getTasksByCategory: (category: string) => Task[];
+  getInboxTasks: () => Task[];
+  getAgingTasks: () => Task[];
+  getScheduledMinutesForDate: (date: Date) => number;
+  isDateOverbooked: (date: Date) => boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -275,10 +367,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // Convert date strings back to Date objects
         const tasks = parsed.tasks?.map((t: any) => ({
           ...t,
-          dueDate: new Date(t.dueDate),
+          dueDate: t.dueDate ? new Date(t.dueDate) : undefined,
           createdAt: new Date(t.createdAt),
           updatedAt: new Date(t.updatedAt),
           completedAt: t.completedAt ? new Date(t.completedAt) : undefined,
+          originalDueDate: t.originalDueDate ? new Date(t.originalDueDate) : undefined,
+          // Ensure new fields have defaults
+          taskType: t.taskType || 'soft',
+          location: t.location || 'scheduled',
+          estimatedDuration: t.estimatedDuration || 30,
+          confirmedForToday: t.confirmedForToday || false,
+          rescheduleCount: t.rescheduleCount || 0,
         })) || [];
         const todoLists = parsed.todoLists?.map((l: any) => ({
           ...l,
@@ -293,6 +392,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ...h,
           startDate: new Date(h.startDate),
           createdAt: new Date(h.createdAt),
+          maxFreezes: h.maxFreezes || 3,
+          spawnsTask: h.spawnsTask || false,
         })) || [];
         dispatch({
           type: 'LOAD_STATE',
@@ -320,9 +421,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     document.documentElement.classList.toggle('dark', state.theme === 'dark');
   }, [state.theme]);
 
+  const getScheduledMinutesForDate = (date: Date): number => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return state.tasks
+      .filter((t) => t.dueDate && format(t.dueDate, 'yyyy-MM-dd') === dateStr && t.status !== 'completed')
+      .reduce((sum, t) => sum + t.estimatedDuration, 0);
+  };
+
+  const isDateOverbooked = (date: Date): boolean => {
+    return getScheduledMinutesForDate(date) > state.dailyCapacityMinutes;
+  };
+
   const getDailyStats = (): DailyStats => {
     const today = getTodayISO();
-    const todayTasks = state.tasks.filter((t) => isToday(t.dueDate));
+    const todayTasks = state.tasks.filter((t) => t.dueDate && isToday(t.dueDate));
     const completedToday = todayTasks.filter((t) => t.status === 'completed').length;
     const habitsCompletedToday = state.habits.filter((h) =>
       h.completedDates.includes(today)
@@ -334,7 +446,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     while (true) {
       const dateStr = format(checkDate, 'yyyy-MM-dd');
       const tasksOnDate = state.tasks.filter(
-        (t) => format(t.dueDate, 'yyyy-MM-dd') === dateStr
+        (t) => t.dueDate && format(t.dueDate, 'yyyy-MM-dd') === dateStr
       );
       if (tasksOnDate.length === 0 || tasksOnDate.every((t) => t.status === 'completed')) {
         taskStreak++;
@@ -344,6 +456,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         break;
       }
     }
+
+    const scheduledMinutes = getScheduledMinutesForDate(new Date());
 
     return {
       tasksCompleted: completedToday,
@@ -357,24 +471,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
         habitsCompletedToday,
         state.habits.length
       ),
+      scheduledMinutes,
+      availableMinutes: state.dailyCapacityMinutes,
+      isOverbooked: scheduledMinutes > state.dailyCapacityMinutes,
     };
   };
 
   const getTodayTasks = () =>
-    state.tasks.filter((t) => isToday(t.dueDate) && t.status !== 'completed');
+    state.tasks.filter((t) => t.dueDate && isToday(t.dueDate) && t.status !== 'completed' && t.location === 'scheduled');
 
   const getUpcomingTasks = () =>
     state.tasks.filter(
       (t) =>
+        t.dueDate &&
         isAfter(startOfDay(t.dueDate), startOfDay(new Date())) &&
-        t.status !== 'completed'
+        t.status !== 'completed' &&
+        t.location === 'scheduled'
     );
 
   const getOverdueTasks = () =>
     state.tasks.filter(
       (t) =>
+        t.dueDate &&
         isBefore(startOfDay(t.dueDate), startOfDay(new Date())) &&
-        t.status !== 'completed'
+        t.status !== 'completed' &&
+        t.location === 'scheduled'
     );
 
   const getCompletedTasks = () =>
@@ -382,6 +503,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const getTasksByCategory = (category: string) =>
     state.tasks.filter((t) => t.category === category);
+
+  const getInboxTasks = () =>
+    state.tasks.filter((t) => t.location === 'inbox' && t.status !== 'completed');
+
+  const getAgingTasks = () =>
+    state.tasks.filter((t) => {
+      if (!t.createdAt || t.status === 'completed') return false;
+      const age = differenceInDays(new Date(), t.createdAt);
+      return age >= state.taskAgingDays && !t.confirmedForToday;
+    });
 
   return (
     <AppContext.Provider
@@ -394,6 +525,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         getOverdueTasks,
         getCompletedTasks,
         getTasksByCategory,
+        getInboxTasks,
+        getAgingTasks,
+        getScheduledMinutesForDate,
+        isDateOverbooked,
       }}
     >
       {children}

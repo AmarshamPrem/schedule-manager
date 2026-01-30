@@ -38,9 +38,14 @@ export function QuickAddTask() {
         title: title.trim(),
         priority,
         status: 'pending',
+        taskType: 'soft',
+        location: 'scheduled',
         dueDate,
         category,
         recurrence: 'none',
+        estimatedDuration: 30,
+        confirmedForToday: true,
+        rescheduleCount: 0,
       },
     });
 

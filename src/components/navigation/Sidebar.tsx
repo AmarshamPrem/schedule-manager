@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { useApp } from '@/contexts/AppContext';
 import {
   LayoutDashboard,
+  Inbox,
   CheckSquare,
   CalendarDays,
   Target,
@@ -15,11 +16,13 @@ import {
   X,
   Sun,
   Moon,
+  Command,
 } from 'lucide-react';
 import { NavItem } from './NavItem';
 
 const primaryNavItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { path: '/inbox', icon: Inbox, label: 'Inbox', showBadge: true },
   { path: '/tasks', icon: CheckSquare, label: 'Tasks' },
   { path: '/schedule', icon: CalendarDays, label: 'Planner' },
   { path: '/habits', icon: Target, label: 'Habits' },
@@ -37,8 +40,9 @@ interface SidebarProps {
 export function Sidebar({ onCollapsedChange }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { state, dispatch } = useApp();
+  const { state, dispatch, getInboxTasks } = useApp();
   const location = useLocation();
+  const inboxCount = getInboxTasks().length;
 
   // Close mobile drawer on route change
   useEffect(() => {
@@ -110,6 +114,7 @@ export function Sidebar({ onCollapsedChange }: SidebarProps) {
               label={item.label}
               collapsed={collapsed && !isMobile}
               onClick={isMobile ? handleMobileClose : undefined}
+              badge={item.showBadge && inboxCount > 0 ? inboxCount : undefined}
             />
           ))}
         </div>

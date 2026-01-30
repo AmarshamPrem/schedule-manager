@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Task, Priority } from '@/types';
+import { Task, Priority, TaskType } from '@/types';
 import { useApp } from '@/contexts/AppContext';
 import { cn, formatTime, getPriorityColor } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +37,10 @@ import {
   Edit,
   Trash2,
   Play,
+  Shield,
+  Feather,
+  RotateCcw,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface TaskItemProps {
@@ -51,11 +55,14 @@ export function TaskItem({ task, compact = false }: TaskItemProps) {
     title: task.title,
     description: task.description || '',
     priority: task.priority,
+    taskType: task.taskType,
     category: task.category,
     estimatedDuration: task.estimatedDuration || 30,
   });
 
   const category = state.categories.find((c) => c.id === task.category);
+  const taskAge = task.createdAt ? differenceInDays(new Date(), task.createdAt) : 0;
+  const isAging = taskAge >= state.taskAgingDays && task.status !== 'completed';
 
   const handleComplete = () => {
     dispatch({ type: 'COMPLETE_TASK', payload: task.id });
@@ -74,6 +81,7 @@ export function TaskItem({ task, compact = false }: TaskItemProps) {
           title: editForm.title,
           description: editForm.description,
           priority: editForm.priority,
+          taskType: editForm.taskType,
           category: editForm.category,
           estimatedDuration: editForm.estimatedDuration,
         },
@@ -98,7 +106,8 @@ export function TaskItem({ task, compact = false }: TaskItemProps) {
       <div
         className={cn(
           'group flex items-center gap-3 rounded-lg border border-border bg-card p-3 transition-colors hover:bg-accent/50',
-          task.status === 'completed' && 'opacity-60'
+          task.status === 'completed' && 'opacity-60',
+          isAging && 'border-warning/30'
         )}
       >
         <Checkbox
@@ -107,19 +116,26 @@ export function TaskItem({ task, compact = false }: TaskItemProps) {
           className="h-4 w-4"
         />
         <div className="flex-1 min-w-0">
-          <p
-            className={cn(
-              'text-sm font-medium truncate',
-              task.status === 'completed' && 'line-through text-muted-foreground'
+          <div className="flex items-center gap-2">
+            <p
+              className={cn(
+                'text-sm font-medium truncate',
+                task.status === 'completed' && 'line-through text-muted-foreground'
+              )}
+            >
+              {task.title}
+            </p>
+            {task.taskType === 'hard' && (
+              <Shield className="h-3 w-3 text-destructive flex-shrink-0" />
             )}
-          >
-            {task.title}
-          </p>
+          </div>
         </div>
         {priorityIcons[task.priority]}
-        <span className="text-xs text-muted-foreground">
-          {format(task.dueDate, 'h:mm a')}
-        </span>
+        {task.dueDate && (
+          <span className="text-xs text-muted-foreground">
+            {format(task.dueDate, 'h:mm a')}
+          </span>
+        )}
       </div>
     );
   }
@@ -129,7 +145,8 @@ export function TaskItem({ task, compact = false }: TaskItemProps) {
       <div
         className={cn(
           'group flex items-start gap-4 rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/30 hover:shadow-sm',
-          task.status === 'completed' && 'opacity-60'
+          task.status === 'completed' && 'opacity-60',
+          isAging && 'border-warning/30 bg-warning/5'
         )}
       >
         <Checkbox
@@ -141,14 +158,34 @@ export function TaskItem({ task, compact = false }: TaskItemProps) {
         <div className="flex-1 min-w-0 space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div className="space-y-1">
-              <p
-                className={cn(
-                  'font-medium',
-                  task.status === 'completed' && 'line-through text-muted-foreground'
+              <div className="flex items-center gap-2">
+                <p
+                  className={cn(
+                    'font-medium',
+                    task.status === 'completed' && 'line-through text-muted-foreground'
+                  )}
+                >
+                  {task.title}
+                </p>
+                {task.taskType === 'hard' && (
+                  <Badge variant="outline" className="h-5 text-[10px] gap-1 border-destructive/50 text-destructive">
+                    <Shield className="h-2.5 w-2.5" />
+                    Must do
+                  </Badge>
                 )}
-              >
-                {task.title}
-              </p>
+                {isAging && (
+                  <Badge variant="outline" className="h-5 text-[10px] gap-1 border-warning/50 text-warning">
+                    <AlertTriangle className="h-2.5 w-2.5" />
+                    {taskAge}d old
+                  </Badge>
+                )}
+                {task.rescheduleCount > 0 && (
+                  <Badge variant="outline" className="h-5 text-[10px] gap-1 text-muted-foreground">
+                    <RotateCcw className="h-2.5 w-2.5" />
+                    {task.rescheduleCount}x
+                  </Badge>
+                )}
+              </div>
               {task.description && (
                 <p className="text-sm text-muted-foreground line-clamp-2">
                   {task.description}
@@ -199,10 +236,12 @@ export function TaskItem({ task, compact = false }: TaskItemProps) {
               </Badge>
             )}
 
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Calendar className="h-3 w-3" />
-              {format(task.dueDate, 'MMM d')}
-            </div>
+            {task.dueDate && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Calendar className="h-3 w-3" />
+                {format(task.dueDate, 'MMM d')}
+              </div>
+            )}
 
             {task.estimatedDuration && (
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -260,6 +299,33 @@ export function TaskItem({ task, compact = false }: TaskItemProps) {
                 </Select>
               </div>
               <div className="space-y-2">
+                <Label>Task Type</Label>
+                <Select
+                  value={editForm.taskType}
+                  onValueChange={(v) => setEditForm({ ...editForm, taskType: v as TaskType })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="soft">
+                      <div className="flex items-center gap-2">
+                        <Feather className="h-3 w-3" />
+                        Soft (flexible)
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="hard">
+                      <div className="flex items-center gap-2">
+                        <Shield className="h-3 w-3" />
+                        Hard (must do)
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
                 <Label>Category</Label>
                 <Select
                   value={editForm.category}
@@ -277,16 +343,16 @@ export function TaskItem({ task, compact = false }: TaskItemProps) {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Estimated Duration (minutes)</Label>
-              <Input
-                type="number"
-                value={editForm.estimatedDuration}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, estimatedDuration: parseInt(e.target.value) || 30 })
-                }
-              />
+              <div className="space-y-2">
+                <Label>Duration (min)</Label>
+                <Input
+                  type="number"
+                  value={editForm.estimatedDuration}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, estimatedDuration: parseInt(e.target.value) || 30 })
+                  }
+                />
+              </div>
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setIsEditing(false)}>
