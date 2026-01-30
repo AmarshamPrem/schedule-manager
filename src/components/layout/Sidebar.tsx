@@ -74,15 +74,15 @@ export function Sidebar() {
                   to={item.path}
                   className={({ isActive }) =>
                     cn(
-                      'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                      'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
                       collapsed && 'justify-center px-2',
                       isActive
-                        ? 'bg-sidebar-accent text-sidebar-primary'
-                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                        ? 'bg-primary/10 text-primary border border-primary/20'
+                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground border border-transparent'
                     )
                   }
                 >
-                  <item.icon className="h-5 w-5 flex-shrink-0" />
+                  <item.icon className={cn("h-5 w-5 flex-shrink-0")} />
                   {!collapsed && <span>{item.label}</span>}
                 </NavLink>
               </TooltipTrigger>
