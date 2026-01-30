@@ -65,6 +65,8 @@ const HabitsPage = () => {
         goal: newHabit.goal,
         color: newHabit.color,
         startDate: new Date(),
+        maxFreezes: 3,
+        spawnsTask: false,
       },
     });
 

@@ -1,9 +1,11 @@
 // Core Types for Productivity Dashboard
 
 export type Priority = 'low' | 'medium' | 'high';
-export type TaskStatus = 'pending' | 'in-progress' | 'completed';
+export type TaskStatus = 'pending' | 'in-progress' | 'completed' | 'skipped';
+export type TaskType = 'hard' | 'soft'; // Hard = must complete, Soft = flexible
 export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'custom';
 export type HabitFrequency = 'daily' | 'weekdays' | 'weekends' | 'custom';
+export type TaskLocation = 'inbox' | 'scheduled' | 'someday';
 
 export interface Task {
   id: string;
@@ -11,17 +13,50 @@ export interface Task {
   description?: string;
   priority: Priority;
   status: TaskStatus;
-  dueDate: Date;
+  taskType: TaskType;
+  location: TaskLocation;
+  dueDate?: Date;
   dueTime?: string;
-  estimatedDuration?: number; // in minutes
+  estimatedDuration: number; // in minutes (required for capacity)
+  actualDuration?: number; // tracked actual time
   category: string;
   recurrence: RecurrenceType;
   customRecurrence?: number[]; // days of week (0-6)
   createdAt: Date;
   updatedAt: Date;
   completedAt?: Date;
+  confirmedForToday: boolean; // Daily planning ritual confirmation
+  lastConfirmedDate?: string; // ISO date of last confirmation
   order: number;
   timeSlot?: { start: string; end: string };
+  // Task aging
+  originalDueDate?: Date;
+  rescheduleCount: number;
+  // Carryover tracking
+  carriedOverFrom?: string; // ISO date
+}
+
+export interface DailyCapacity {
+  date: string; // ISO date
+  totalMinutes: number; // Available work minutes
+  scheduledMinutes: number; // Minutes allocated to tasks
+  completedMinutes: number; // Actually completed
+  fixedCommitments: FixedCommitment[];
+}
+
+export interface FixedCommitment {
+  id: string;
+  name: string;
+  startTime: string; // HH:mm
+  endTime: string;
+  days: number[]; // 0-6 (Sunday-Saturday)
+}
+
+export interface CarryoverRecord {
+  date: string;
+  taskId: string;
+  action: 'completed' | 'skipped' | 'rescheduled';
+  newDate?: string;
 }
 
 export interface TodoList {
@@ -56,7 +91,11 @@ export interface Habit {
   currentStreak: number;
   longestStreak: number;
   streakFreezes: number;
+  maxFreezes: number;
   createdAt: Date;
+  // Habit-task bridge
+  spawnsTask: boolean;
+  taskDuration?: number; // minutes for spawned task
 }
 
 export interface Streak {
@@ -74,10 +113,14 @@ export interface AnalyticsSnapshot {
   date: string;
   tasksCompleted: number;
   tasksMissed: number;
+  tasksSkipped: number;
   habitsCompleted: number;
   habitsMissed: number;
   productivityScore: number;
   focusMinutes: number;
+  plannedMinutes: number;
+  actualMinutes: number;
+  contextSwitches: number;
 }
 
 export interface DailyStats {
@@ -87,6 +130,9 @@ export interface DailyStats {
   habitsTotal: number;
   currentStreak: number;
   productivityScore: number;
+  scheduledMinutes: number;
+  availableMinutes: number;
+  isOverbooked: boolean;
 }
 
 export interface TimeBlock {
@@ -118,6 +164,26 @@ export interface UserPreferences {
   theme: 'light' | 'dark' | 'system';
   defaultView: 'today' | 'week' | 'month';
   workingHours: { start: string; end: string };
+  dailyCapacityMinutes: number;
   focusMode: boolean;
   notifications: boolean;
+  taskAgingDays: number; // Days before task requires re-confirmation
+  fixedCommitments: FixedCommitment[];
+}
+
+export interface EndOfDayReflection {
+  date: string;
+  whatWorked: string;
+  whatDidnt: string;
+  improvement: string;
+  createdAt: Date;
+}
+
+export interface WeeklyReview {
+  weekStart: string;
+  missedTasks: { taskId: string; reason: 'overplanning' | 'interruption' | 'avoidance' | 'other' }[];
+  archivedTasks: string[];
+  recommittedTasks: string[];
+  notes: string;
+  createdAt: Date;
 }

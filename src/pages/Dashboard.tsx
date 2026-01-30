@@ -4,12 +4,14 @@ import { getGreeting } from '@/lib/utils';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { QuickAddTask } from '@/components/dashboard/QuickAddTask';
+import { CapacityIndicator } from '@/components/dashboard/CapacityIndicator';
 import { TaskList } from '@/components/tasks/TaskList';
 import { HabitCard } from '@/components/habits/HabitCard';
 import { ProductivityChart } from '@/components/analytics/ProductivityChart';
 import { FocusMode } from '@/components/focus/FocusMode';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
 import {
   CheckCircle2,
@@ -19,15 +21,20 @@ import {
   ArrowRight,
   Flame,
   Calendar,
+  Inbox,
+  AlertTriangle,
 } from 'lucide-react';
 
 const Dashboard = () => {
-  const { state, getDailyStats, getTodayTasks, getOverdueTasks } = useApp();
+  const { state, getDailyStats, getTodayTasks, getOverdueTasks, getInboxTasks, getAgingTasks } = useApp();
   const stats = getDailyStats();
   const todayTasks = getTodayTasks();
   const overdueTasks = getOverdueTasks();
+  const inboxTasks = getInboxTasks();
+  const agingTasks = getAgingTasks();
 
   const todaysHabits = state.habits.slice(0, 3);
+  const unconfirmedTasks = todayTasks.filter(t => !t.confirmedForToday);
 
   if (state.focusMode) {
     return <FocusMode />;
@@ -94,10 +101,36 @@ const Dashboard = () => {
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Quick Add Task</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <QuickAddTask />
+            <CapacityIndicator />
           </CardContent>
         </Card>
+
+        {/* Inbox Alert */}
+        {inboxTasks.length > 0 && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="flex items-center gap-4 p-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                <Inbox className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium">
+                  {inboxTasks.length} task{inboxTasks.length !== 1 ? 's' : ''} in inbox
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Process and schedule your captured tasks
+                </p>
+              </div>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/inbox">
+                  Process
+                  <ArrowRight className="ml-1 h-3 w-3" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Main Content Grid */}
         <div className="grid gap-6 lg:grid-cols-3">
@@ -113,6 +146,23 @@ const Dashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <TaskList tasks={overdueTasks} compact />
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Aging Tasks Warning */}
+            {agingTasks.length > 0 && (
+              <Card className="border-warning/20 bg-warning/5">
+                <CardContent className="flex items-center gap-4 p-4">
+                  <AlertTriangle className="h-5 w-5 text-warning" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">
+                      {agingTasks.length} task{agingTasks.length !== 1 ? 's' : ''} need attention
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      These tasks have been pending for a while
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
             )}
