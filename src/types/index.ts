@@ -187,3 +187,11 @@ export interface WeeklyReview {
   notes: string;
   createdAt: Date;
 }
+
+export interface EndOfDayReflection {
+  date: string;
+  whatWorked: string;
+  whatDidnt: string;
+  improvement: string;
+  createdAt: Date;
+}
