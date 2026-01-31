@@ -1,6 +1,7 @@
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useApp } from '@/contexts/AppContext';
-import { getGreeting } from '@/lib/utils';
+import { getGreeting, getTodayISO } from '@/lib/utils';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { QuickAddTask } from '@/components/dashboard/QuickAddTask';
@@ -9,6 +10,8 @@ import { TaskList } from '@/components/tasks/TaskList';
 import { HabitCard } from '@/components/habits/HabitCard';
 import { ProductivityChart } from '@/components/analytics/ProductivityChart';
 import { FocusMode } from '@/components/focus/FocusMode';
+import { DailyPlanningRitual } from '@/components/planning/DailyPlanningRitual';
+import { EndOfDayShutdown } from '@/components/reflection/EndOfDayShutdown';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,10 +26,15 @@ import {
   Calendar,
   Inbox,
   AlertTriangle,
+  Sun,
+  Moon,
 } from 'lucide-react';
 
 const Dashboard = () => {
   const { state, getDailyStats, getTodayTasks, getOverdueTasks, getInboxTasks, getAgingTasks } = useApp();
+  const [planningOpen, setPlanningOpen] = useState(false);
+  const [shutdownOpen, setShutdownOpen] = useState(false);
+  
   const stats = getDailyStats();
   const todayTasks = getTodayTasks();
   const overdueTasks = getOverdueTasks();
@@ -35,6 +43,10 @@ const Dashboard = () => {
 
   const todaysHabits = state.habits.slice(0, 3);
   const unconfirmedTasks = todayTasks.filter(t => !t.confirmedForToday);
+  
+  // Check if planning was done today
+  const lastPlanningDate = localStorage.getItem('last-planning-date');
+  const needsPlanning = lastPlanningDate !== getTodayISO() && todayTasks.length > 0;
 
   if (state.focusMode) {
     return <FocusMode />;
@@ -56,11 +68,13 @@ const Dashboard = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" asChild>
-              <Link to="/analytics">
-                View Analytics
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
+            <Button variant="outline" size="sm" onClick={() => setPlanningOpen(true)}>
+              <Sun className="mr-2 h-4 w-4" />
+              Plan Day
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setShutdownOpen(true)}>
+              <Moon className="mr-2 h-4 w-4" />
+              End Day
             </Button>
           </div>
         </div>
@@ -106,6 +120,27 @@ const Dashboard = () => {
             <CapacityIndicator />
           </CardContent>
         </Card>
+
+        {/* Daily Planning Prompt */}
+        {needsPlanning && (
+          <Card className="border-warning/20 bg-warning/5">
+            <CardContent className="flex items-center gap-4 p-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10">
+                <Sun className="h-5 w-5 text-warning" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium">Start your day with intention</p>
+                <p className="text-sm text-muted-foreground">
+                  Review and confirm today's {todayTasks.length} task{todayTasks.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+              <Button onClick={() => setPlanningOpen(true)} size="sm">
+                Plan Day
+                <ArrowRight className="ml-1 h-3 w-3" />
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Inbox Alert */}
         {inboxTasks.length > 0 && (
@@ -221,6 +256,10 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Dialogs */}
+      <DailyPlanningRitual open={planningOpen} onOpenChange={setPlanningOpen} />
+      <EndOfDayShutdown open={shutdownOpen} onOpenChange={setShutdownOpen} />
     </DashboardLayout>
   );
 };
