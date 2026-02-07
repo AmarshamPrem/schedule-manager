@@ -19,6 +19,7 @@ import {
   Command,
 } from 'lucide-react';
 import { NavItem } from './NavItem';
+import { OfflineIndicator } from '@/components/offline/OfflineIndicator';
 
 const primaryNavItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -123,6 +124,13 @@ export function Sidebar({ onCollapsedChange }: SidebarProps) {
       {/* Secondary Navigation / Footer */}
       <div className="border-t border-sidebar-border py-2">
         <div className="space-y-0.5 px-2">
+          {/* Offline Indicator */}
+          {(!collapsed || isMobile) && (
+            <div className="px-3 py-2">
+              <OfflineIndicator />
+            </div>
+          )}
+          
           {secondaryNavItems.map((item) => (
             <NavItem
               key={item.path}

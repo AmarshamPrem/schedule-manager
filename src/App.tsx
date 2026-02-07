@@ -8,6 +8,7 @@ import { AppProvider, useApp } from "@/contexts/AppContext";
 import { useKeyboardShortcuts, GLOBAL_SHORTCUTS } from "@/hooks/useKeyboardShortcuts";
 import { CommandPalette } from "@/components/command/CommandPalette";
 import { DataExportImport } from "@/components/data/DataExportImport";
+import { OfflineBanner } from "@/components/offline/OfflineIndicator";
 import Dashboard from "./pages/Dashboard";
 import TasksPage from "./pages/TasksPage";
 import InboxPage from "./pages/InboxPage";
@@ -41,6 +42,7 @@ function AppWithShortcuts() {
 
   return (
     <>
+      <OfflineBanner />
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/inbox" element={<InboxPage />} />
