@@ -1,7 +1,14 @@
-import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, ReactNode, useCallback, useState } from 'react';
 import { Task, TodoList, Habit, Category, DailyStats, TimeBlock, FixedCommitment } from '@/types';
 import { generateId, getTodayISO, isToday, calculateProductivityScore } from '@/lib/utils';
 import { addDays, format, isAfter, isBefore, startOfDay, differenceInDays } from 'date-fns';
+import {
+  loadAllData,
+  saveAllData,
+  addToSyncQueue,
+  SyncQueueItem,
+} from '@/lib/offlineStorage';
+import { syncManager } from '@/lib/syncManager';
 
 interface AppState {
   tasks: Task[];
@@ -341,6 +348,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
 interface AppContextType {
   state: AppState;
   dispatch: React.Dispatch<AppAction>;
+  isLoading: boolean;
+  isOnline: boolean;
   getDailyStats: () => DailyStats;
   getTodayTasks: () => Task[];
   getUpcomingTasks: () => Task[];
@@ -357,64 +366,153 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // Load state from localStorage
+  // Track online/offline status
   useEffect(() => {
-    const saved = localStorage.getItem('productivity-dashboard-state');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        // Convert date strings back to Date objects
-        const tasks = parsed.tasks?.map((t: any) => ({
-          ...t,
-          dueDate: t.dueDate ? new Date(t.dueDate) : undefined,
-          createdAt: new Date(t.createdAt),
-          updatedAt: new Date(t.updatedAt),
-          completedAt: t.completedAt ? new Date(t.completedAt) : undefined,
-          originalDueDate: t.originalDueDate ? new Date(t.originalDueDate) : undefined,
-          // Ensure new fields have defaults
-          taskType: t.taskType || 'soft',
-          location: t.location || 'scheduled',
-          estimatedDuration: t.estimatedDuration || 30,
-          confirmedForToday: t.confirmedForToday || false,
-          rescheduleCount: t.rescheduleCount || 0,
-        })) || [];
-        const todoLists = parsed.todoLists?.map((l: any) => ({
-          ...l,
-          createdAt: new Date(l.createdAt),
-          items: l.items?.map((i: any) => ({
-            ...i,
-            createdAt: new Date(i.createdAt),
-            completedAt: i.completedAt ? new Date(i.completedAt) : undefined,
-          })) || [],
-        })) || [];
-        const habits = parsed.habits?.map((h: any) => ({
-          ...h,
-          startDate: new Date(h.startDate),
-          createdAt: new Date(h.createdAt),
-          maxFreezes: h.maxFreezes || 3,
-          spawnsTask: h.spawnsTask || false,
-        })) || [];
-        dispatch({
-          type: 'LOAD_STATE',
-          payload: {
-            ...initialState,
-            ...parsed,
-            tasks,
-            todoLists,
-            habits,
-          },
-        });
-      } catch (e) {
-        console.error('Failed to load state:', e);
-      }
-    }
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
-  // Save state to localStorage
+  // Load state from IndexedDB (primary) or localStorage (fallback/migration)
   useEffect(() => {
+    async function loadData() {
+      try {
+        // Try loading from IndexedDB first
+        const idbData = await loadAllData();
+        
+        if (idbData.tasks.length > 0 || idbData.habits.length > 0 || idbData.todoLists.length > 0) {
+          // IndexedDB has data, use it
+          dispatch({
+            type: 'LOAD_STATE',
+            payload: {
+              ...initialState,
+              tasks: idbData.tasks,
+              todoLists: idbData.todoLists,
+              habits: idbData.habits,
+              categories: idbData.categories.length > 0 ? idbData.categories : initialState.categories,
+              timeBlocks: idbData.timeBlocks,
+              fixedCommitments: idbData.fixedCommitments,
+              theme: idbData.metadata.theme || 'dark',
+              dailyCapacityMinutes: idbData.metadata.dailyCapacityMinutes || 480,
+              taskAgingDays: idbData.metadata.taskAgingDays || 7,
+              workingHours: idbData.metadata.workingHours || { start: '09:00', end: '17:00' },
+            },
+          });
+        } else {
+          // Fallback: migrate from localStorage
+          const saved = localStorage.getItem('productivity-dashboard-state');
+          if (saved) {
+            try {
+              const parsed = JSON.parse(saved);
+              const tasks = parsed.tasks?.map((t: any) => ({
+                ...t,
+                dueDate: t.dueDate ? new Date(t.dueDate) : undefined,
+                createdAt: new Date(t.createdAt),
+                updatedAt: new Date(t.updatedAt),
+                completedAt: t.completedAt ? new Date(t.completedAt) : undefined,
+                originalDueDate: t.originalDueDate ? new Date(t.originalDueDate) : undefined,
+                taskType: t.taskType || 'soft',
+                location: t.location || 'scheduled',
+                estimatedDuration: t.estimatedDuration || 30,
+                confirmedForToday: t.confirmedForToday || false,
+                rescheduleCount: t.rescheduleCount || 0,
+              })) || [];
+              const todoLists = parsed.todoLists?.map((l: any) => ({
+                ...l,
+                createdAt: new Date(l.createdAt),
+                items: l.items?.map((i: any) => ({
+                  ...i,
+                  createdAt: new Date(i.createdAt),
+                  completedAt: i.completedAt ? new Date(i.completedAt) : undefined,
+                })) || [],
+              })) || [];
+              const habits = parsed.habits?.map((h: any) => ({
+                ...h,
+                startDate: new Date(h.startDate),
+                createdAt: new Date(h.createdAt),
+                maxFreezes: h.maxFreezes || 3,
+                spawnsTask: h.spawnsTask || false,
+              })) || [];
+              
+              const stateToLoad = {
+                ...initialState,
+                ...parsed,
+                tasks,
+                todoLists,
+                habits,
+              };
+              
+              dispatch({ type: 'LOAD_STATE', payload: stateToLoad });
+              
+              // Migrate to IndexedDB
+              await saveAllData({
+                tasks,
+                todoLists,
+                habits,
+                categories: parsed.categories || initialState.categories,
+                timeBlocks: parsed.timeBlocks || [],
+                fixedCommitments: parsed.fixedCommitments || [],
+                metadata: {
+                  theme: parsed.theme,
+                  dailyCapacityMinutes: parsed.dailyCapacityMinutes,
+                  taskAgingDays: parsed.taskAgingDays,
+                  workingHours: parsed.workingHours,
+                },
+              });
+              
+              console.log('Migrated data from localStorage to IndexedDB');
+            } catch (e) {
+              console.error('Failed to migrate from localStorage:', e);
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load data:', e);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    
+    loadData();
+    
+    // Start sync manager
+    const stopSync = syncManager.startAutoSync();
+    return () => stopSync();
+  }, []);
+
+  // Save state to IndexedDB (and localStorage as backup) whenever state changes
+  useEffect(() => {
+    if (isLoading) return;
+    
+    // Save to IndexedDB
+    saveAllData({
+      tasks: state.tasks,
+      todoLists: state.todoLists,
+      habits: state.habits,
+      categories: state.categories,
+      timeBlocks: state.timeBlocks,
+      fixedCommitments: state.fixedCommitments,
+      metadata: {
+        theme: state.theme,
+        dailyCapacityMinutes: state.dailyCapacityMinutes,
+        taskAgingDays: state.taskAgingDays,
+        workingHours: state.workingHours,
+      },
+    }).catch((e) => console.error('Failed to save to IndexedDB:', e));
+    
+    // Also save to localStorage as backup
     localStorage.setItem('productivity-dashboard-state', JSON.stringify(state));
-  }, [state]);
+  }, [state, isLoading]);
 
   // Apply theme
   useEffect(() => {
@@ -519,6 +617,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       value={{
         state,
         dispatch,
+        isLoading,
+        isOnline,
         getDailyStats,
         getTodayTasks,
         getUpcomingTasks,
