@@ -1,74 +1,112 @@
-# Discipline: Productivity Command Center
+# schedule-manager
 
-A lightweight, extensible app for managing focus, tasks, routines, and productivity analytics.
+A lightweight, local-first schedule and task manager (frontend in TypeScript + Vite).
 
-## Overview
-Provides a unified interface (CLI + web/desktop UI) for task automation, focus sessions, timers, habits, and lightweight analytics. Designed to be local-first, privacy-focused, and plugin-friendly.
-
-## Quick Installation
+## Quick Start
 
 Prerequisites
+
 - Node.js 18+ and npm or Yarn
-- (Optional) Python 3.8+ for auxiliary scripts
-- Git
+- Git (optional)
 
 Local development
-1. Clone:
-   git clone https://github.com/your-org/discipline-productivity-cc.git
-2. Install dependencies:
-   cd discipline-productivity-cc
+
+1. Install dependencies:
+
    npm install
-3. Start dev server:
+
+2. Start dev server:
+
    npm run dev
-4. Run tests:
-   npm test
 
 Production build
-- Build frontend and backend:
-  npm run build
-- Start production server:
-  npm start
 
-## Project structure
-- /apps
-  - /ui — web or desktop frontend (React/Electron)
-  - /api — backend server or local service
-- /libs — shared modules (utils, data models, integrations)
-- /plugins — community and local plugins
-- /config — environment and deployment configs
-- /scripts — dev and build helper scripts
-- /docs — additional documentation
-- /tests — unit and integration tests
+    npm run build
 
-## Technical features
-- Local-first data model with optional sync
-- Focus sessions (Pomodoro, custom timers)
-- Task & habit management with recurring rules
-- Automation rules and triggers (time, events, integrations)
-- Metrics & lightweight analytics dashboard
-- Plugin API for third-party extensions
-- Cross-platform (desktop/web) architecture
-- Offline-capable with conflict-resolution strategies
+Run tests
 
-## Configuration
-- Environment variables: see /config/example.env
-- Default data directory: ~/.discipline-cc (configurable)
-- Plugin registration: /plugins/README.md
+    npm run test
 
-## Privacy & Data
-- Local-first storage: user data is stored locally by default.
-- Optional sync: cloud sync is opt-in; data is encrypted in transit and at rest when enabled.
-- Minimal telemetry: no telemetry enabled by default. Any optional telemetry is anonymized and opt-in.
-- Exports & deletion: users can export or delete all local data via the Settings interface or CLI.
-- No ads; data is not sold for marketing purposes.
+## Project layout (root)
+
+- bun.lockb
+- components.json
+- eslint.config.js
+- index.html
+- package.json
+- postcss.config.js
+- README.md
+- tailwind.config.ts
+- tsconfig.app.json
+- tsconfig.json
+- tsconfig.node.json
+- vite.config.ts
+- vitest.config.ts
+- public/
+  - robots.txt
+- src/
+  - App.css
+  - App.tsx
+  - index.css
+  - main.tsx
+  - vite-env.d.ts
+  - components/
+    - NavLink.tsx
+    - analytics/ProductivityChart.tsx
+    - command/CommandPalette.tsx
+    - dashboard/CapacityIndicator.tsx
+    - dashboard/QuickAddTask.tsx
+    - dashboard/StatCard.tsx
+    - data/DataExportImport.tsx
+    - focus/FocusMode.tsx
+    - habits/HabitCard.tsx
+    - habits/HabitGrid.tsx
+    - inbox/InboxView.tsx
+    - layout/DashboardLayout.tsx
+    - navigation/NavItem.tsx
+    - navigation/Sidebar.tsx
+    - offline/OfflineIndicator.tsx
+    - planning/DailyPlanningRitual.tsx
+    - reflection/EndOfDayShutdown.tsx
+    - schedule/DailyTimeline.tsx
+    - tasks/TaskItem.tsx
+    - tasks/TaskList.tsx
+    - todos/TodoListCard.tsx
+    - ui/ (collection of UI primitives and components)
+  - contexts/
+    - AppContext.tsx
+  - hooks/
+    - use-mobile.tsx
+    - use-toast.ts
+    - useKeyboardShortcuts.ts
+    - useOnlineStatus.ts
+  - lib/
+    - offlineStorage.ts
+    - syncManager.ts
+    - utils.ts
+  - pages/
+    - AnalyticsPage.tsx
+    - Dashboard.tsx
+    - HabitsPage.tsx
+    - InboxPage.tsx
+    - NotFound.tsx
+    - SchedulePage.tsx
+    - SettingsPage.tsx
+    - TasksPage.tsx
+    - TodosPage.tsx
+  - test/
+    - example.test.ts
+    - setup.ts
+  - types/
+    - index.ts
+
+This README reflects the frontend app structure in `src/` and the top-level toolchain files.
 
 ## Contributing
-- Follow code style in / .editorconfig and lint rules.
-- Open issues and PRs; include tests for new features.
-- See /docs/CONTRIBUTING.md for guidelines.
+
+- Follow the project's lint and formatting rules.
+- Add tests for new features and run `npm run test`.
 
 ## License
-MIT — see LICENSE file.
 
-## Support
-For bugs or feature requests, open an issue on the repository.
+MIT
