@@ -82,26 +82,40 @@ export function Sidebar({ onCollapsedChange }: SidebarProps) {
         collapsed && !isMobile ? 'justify-center px-2' : 'justify-between px-4'
       )}>
         {(!collapsed || isMobile) && (
-          <span className="text-base font-semibold text-foreground">ProductiFlow</span>
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg gradient-brand shadow-soft">
+              <Command className="h-4 w-4 text-primary-foreground" />
+            </div>
+            <span className="text-base font-bold tracking-tight">ProductiFlow</span>
+          </div>
         )}
-        
+        {collapsed && !isMobile && (
+          <button
+            onClick={() => setCollapsed(false)}
+            className="flex h-8 w-8 items-center justify-center rounded-lg gradient-brand shadow-soft press"
+            aria-label="Expand sidebar"
+          >
+            <Command className="h-4 w-4 text-primary-foreground" />
+          </button>
+        )}
+
         {isMobile ? (
           <button
             onClick={handleMobileClose}
-            className="flex h-8 w-8 items-center justify-center rounded text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring press"
             aria-label="Close menu"
           >
             <X className="h-5 w-5" />
           </button>
-        ) : (
+        ) : !collapsed ? (
           <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="flex h-8 w-8 items-center justify-center rounded text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            onClick={() => setCollapsed(true)}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring press"
+            aria-label="Collapse sidebar"
           >
-            {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            <PanelLeftClose className="h-4 w-4" />
           </button>
-        )}
+        ) : null}
       </div>
 
       {/* Primary Navigation */}

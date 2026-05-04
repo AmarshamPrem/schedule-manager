@@ -17,7 +17,9 @@ import TodosPage from "./pages/TodosPage";
 import HabitsPage from "./pages/HabitsPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import SettingsPage from "./pages/SettingsPage";
+import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
+import { PageTransition } from "./components/ui/motion/PageTransition";
 
 const queryClient = new QueryClient();
 
@@ -43,17 +45,21 @@ function AppWithShortcuts() {
   return (
     <>
       <OfflineBanner />
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/inbox" element={<InboxPage />} />
-        <Route path="/tasks" element={<TasksPage />} />
-        <Route path="/schedule" element={<SchedulePage />} />
-        <Route path="/todos" element={<TodosPage />} />
-        <Route path="/habits" element={<HabitsPage />} />
-        <Route path="/analytics" element={<AnalyticsPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <PageTransition>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/inbox" element={<InboxPage />} />
+          <Route path="/tasks" element={<TasksPage />} />
+          <Route path="/schedule" element={<SchedulePage />} />
+          <Route path="/todos" element={<TodosPage />} />
+          <Route path="/habits" element={<HabitsPage />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/login" element={<AuthPage mode="login" />} />
+          <Route path="/register" element={<AuthPage mode="register" />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </PageTransition>
       <CommandPalette
         open={commandOpen}
         onOpenChange={setCommandOpen}

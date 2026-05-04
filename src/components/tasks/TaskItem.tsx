@@ -105,7 +105,7 @@ export function TaskItem({ task, compact = false }: TaskItemProps) {
     return (
       <div
         className={cn(
-          'group flex items-center gap-3 rounded-lg border border-border bg-card p-3 transition-colors hover:bg-accent/50',
+          'group flex items-center gap-3 rounded-lg border border-border bg-card p-3 shadow-soft transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-primary/30 hover:shadow-pop hover:-translate-y-px',
           task.status === 'completed' && 'opacity-60',
           isAging && 'border-warning/30'
         )}
@@ -144,7 +144,7 @@ export function TaskItem({ task, compact = false }: TaskItemProps) {
     <>
       <div
         className={cn(
-          'group flex items-start gap-4 rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/30 hover:shadow-sm',
+          'group flex items-start gap-4 rounded-xl border border-border bg-card p-4 shadow-soft transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-primary/30 hover:shadow-pop hover:-translate-y-0.5',
           task.status === 'completed' && 'opacity-60',
           isAging && 'border-warning/30 bg-warning/5'
         )}
