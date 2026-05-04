@@ -82,7 +82,17 @@ export function Sidebar({ onCollapsedChange }: SidebarProps) {
         collapsed && !isMobile ? 'justify-center px-2' : 'justify-between px-4'
       )}>
         {(!collapsed || isMobile) && (
-          <span className="text-base font-semibold text-foreground">ProductiFlow</span>
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg gradient-brand shadow-soft">
+              <Command className="h-4 w-4 text-primary-foreground" />
+            </div>
+            <span className="text-base font-bold tracking-tight">ProductiFlow</span>
+          </div>
+        )}
+        {collapsed && !isMobile && (
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg gradient-brand shadow-soft">
+            <Command className="h-4 w-4 text-primary-foreground" />
+          </div>
         )}
         
         {isMobile ? (
