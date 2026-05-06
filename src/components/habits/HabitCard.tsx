@@ -24,9 +24,7 @@ export function HabitCard({ habit }: HabitCardProps) {
   const isCompletedToday = habit.completedDates.includes(today);
 
   const handleComplete = () => {
-    if (!isCompletedToday) {
-      dispatch({ type: 'COMPLETE_HABIT', payload: { id: habit.id, date: today } });
-    }
+    dispatch({ type: 'COMPLETE_HABIT', payload: { id: habit.id, date: today } });
   };
 
   const handleDelete = () => {
