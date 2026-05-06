@@ -110,14 +110,64 @@ function appReducer(state: AppState, action: AppAction): AppState {
       };
     }
     case 'COMPLETE_TASK': {
-      return {
-        ...state,
-        tasks: state.tasks.map((task) =>
-          task.id === action.payload
-            ? { ...task, status: 'completed', completedAt: new Date(), updatedAt: new Date() }
-            : task
-        ),
-      };
+      const target = state.tasks.find((t) => t.id === action.payload);
+      if (!target) return state;
+      const now = new Date();
+      // Toggle complete <-> pending
+      if (target.status === 'completed') {
+        return {
+          ...state,
+          tasks: state.tasks.map((task) =>
+            task.id === action.payload
+              ? { ...task, status: 'pending', completedAt: undefined, actualDuration: undefined, updatedAt: now }
+              : task
+          ),
+        };
+      }
+      const updatedTasks = state.tasks.map((task) =>
+        task.id === action.payload
+          ? { ...task, status: 'completed' as const, completedAt: now, updatedAt: now }
+          : task
+      );
+      // Spawn next recurrence instance
+      if (target.recurrence && target.recurrence !== 'none' && target.dueDate) {
+        let nextDue: Date | undefined;
+        const base = new Date(target.dueDate);
+        if (target.recurrence === 'daily') {
+          nextDue = addDays(base, 1);
+        } else if (target.recurrence === 'weekly') {
+          nextDue = addDays(base, 7);
+        } else if (target.recurrence === 'custom' && target.customRecurrence?.length) {
+          // find next day-of-week match
+          for (let i = 1; i <= 14; i++) {
+            const candidate = addDays(base, i);
+            if (target.customRecurrence.includes(candidate.getDay())) {
+              nextDue = candidate;
+              break;
+            }
+          }
+        }
+        if (nextDue) {
+          const nextTask: Task = {
+            ...target,
+            id: generateId(),
+            status: 'pending',
+            completedAt: undefined,
+            actualDuration: undefined,
+            dueDate: nextDue,
+            originalDueDate: undefined,
+            rescheduleCount: 0,
+            confirmedForToday: isToday(nextDue),
+            lastConfirmedDate: isToday(nextDue) ? getTodayISO() : undefined,
+            carriedOverFrom: undefined,
+            createdAt: now,
+            updatedAt: now,
+            order: state.tasks.length,
+          };
+          updatedTasks.push(nextTask);
+        }
+      }
+      return { ...state, tasks: updatedTasks };
     }
     case 'SKIP_TASK': {
       return {
@@ -249,13 +299,31 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         habits: state.habits.map((habit) => {
           if (habit.id !== action.payload.id) return habit;
-          const newCompletedDates = [...habit.completedDates, action.payload.date];
-          const newStreak = habit.currentStreak + 1;
+          const date = action.payload.date;
+          const already = habit.completedDates.includes(date);
+          const newCompletedDates = already
+            ? habit.completedDates.filter((d) => d !== date)
+            : [...habit.completedDates, date];
+
+          // Recompute current streak ending today (or yesterday if today not done)
+          const set = new Set(newCompletedDates);
+          const today = new Date();
+          let streak = 0;
+          let cursor = new Date(today);
+          if (!set.has(format(cursor, 'yyyy-MM-dd'))) {
+            cursor = addDays(cursor, -1);
+          }
+          while (set.has(format(cursor, 'yyyy-MM-dd'))) {
+            streak++;
+            cursor = addDays(cursor, -1);
+          }
+
           return {
             ...habit,
             completedDates: newCompletedDates,
-            currentStreak: newStreak,
-            longestStreak: Math.max(habit.longestStreak, newStreak),
+            missedDates: habit.missedDates.filter((d) => d !== date),
+            currentStreak: streak,
+            longestStreak: Math.max(habit.longestStreak, streak),
           };
         }),
       };
