@@ -126,7 +126,6 @@ export function HabitCard({ habit }: HabitCardProps) {
             size="sm"
             variant={isCompletedToday ? 'secondary' : 'default'}
             onClick={handleComplete}
-            disabled={isCompletedToday}
             className="h-8"
           >
             {isCompletedToday ? (
