@@ -299,13 +299,31 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         habits: state.habits.map((habit) => {
           if (habit.id !== action.payload.id) return habit;
-          const newCompletedDates = [...habit.completedDates, action.payload.date];
-          const newStreak = habit.currentStreak + 1;
+          const date = action.payload.date;
+          const already = habit.completedDates.includes(date);
+          const newCompletedDates = already
+            ? habit.completedDates.filter((d) => d !== date)
+            : [...habit.completedDates, date];
+
+          // Recompute current streak ending today (or yesterday if today not done)
+          const set = new Set(newCompletedDates);
+          const today = new Date();
+          let streak = 0;
+          let cursor = new Date(today);
+          if (!set.has(format(cursor, 'yyyy-MM-dd'))) {
+            cursor = addDays(cursor, -1);
+          }
+          while (set.has(format(cursor, 'yyyy-MM-dd'))) {
+            streak++;
+            cursor = addDays(cursor, -1);
+          }
+
           return {
             ...habit,
             completedDates: newCompletedDates,
-            currentStreak: newStreak,
-            longestStreak: Math.max(habit.longestStreak, newStreak),
+            missedDates: habit.missedDates.filter((d) => d !== date),
+            currentStreak: streak,
+            longestStreak: Math.max(habit.longestStreak, streak),
           };
         }),
       };
